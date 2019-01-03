@@ -1,0 +1,42 @@
+#!/usr/bin/env python2
+'''
+Usage:
+    qp_ezfio_to_h5 (integrals|bootstrap) <ez> [<h5>] (--ao|--mo)
+'''
+from __future__ import print_function
+from ezfio import ezfio
+import h5py
+import sys
+from docopt import docopt
+import os
+import subprocess
+
+H5_DEFAULT = 'qp_in.h5'
+
+if __name__ == '__main__':
+   arguments = docopt(__doc__)
+   
+   filename_ezfio = arguments['<ez>']
+   ezfio.set_file(filename_ezfio)
+
+   filename_h5 =  arguments['<h5>'] if arguments['<h5>'] else H5_DEFAULT
+
+   if arguments['bootstrap'] and arguments['--ao']:
+        sys.exit('You cannot boostrap from AO. Please submit a pullrequest or contact developers if really needed')
+
+   # The nuclear repulsion will be put in with the integral
+   subprocess.check_call('h5_basis_id="%s" h5_int_path="%s" qp_run write %s' % (int(arguments['--ao']), filename_h5, filename_ezfio),
+                         shell=True )
+
+   if arguments['bootstrap']:
+
+        with h5py.File(filename_h5, 'r+') as f:
+
+            f['MO_basis/mo_tot_num'] = ezfio.mo_basis_mo_tot_num
+            #if arguments['--ao']:
+            #    f['AO_basis/ao_num'] = ezfio.ao_basis_ao_num
+            #    f.create_dataset('MO_basis/mo_coef', (ezfio.mo_basis_mo_tot_num, ezfio.ao_basis_ao_num), dtype='f', data=ezfio.mo_basis_mo_coef)
+             
+            f['electrons/elec_alpha_num'] = ezfio.electrons_elec_alpha_num
+            f['electrons/elec_beta_num'] = ezfio.electrons_elec_beta_num
+   
